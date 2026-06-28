@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>太原学院 · 成绩自动计算工具</title>
+<style>
+:root{--primary:#1a5276;--primary-light:#2980b9;--accent:#e74c3c;--bg:#f4f6f8;--card:#fff;--border:#dce1e6;--text:#2c3e50;--text-light:#7f8c8d;--pass:#27ae60;--fail:#e74c3c;--warning:#f39c12}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px}
+.container{max-width:100%;margin:0 auto}
+.header{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:22px 28px;border-radius:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.header h1{font-size:22px;font-weight:700;letter-spacing:1px}
+.header .sub{font-size:13px;opacity:.85;margin-top:3px}
+.header .badge{background:rgba(255,255,255,.2);padding:5px 14px;border-radius:20px;font-size:12px}
+.mode-tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.mode-tab{padding:10px 24px;border-radius:8px;border:2px solid var(--border);background:var(--card);cursor:pointer;font-size:14px;font-weight:600;transition:all .2s;color:var(--text-light)}
+.mode-tab:hover{border-color:var(--primary-light);color:var(--primary)}
+.mode-tab.active{border-color:var(--primary);background:var(--primary);color:#fff}
+.mode-tab .mt-desc{display:block;font-weight:400;font-size:11px;margin-top:2px;opacity:.7}
+.design-note{background:#eaf4fc;border:1px solid #b8d4ed;border-radius:10px;padding:14px 20px;margin-bottom:14px;font-size:13px;line-height:1.7}
+.design-note strong{color:var(--primary)}
+.design-note .tag{display:inline-block;background:var(--primary);color:#fff;padding:1px 8px;border-radius:4px;font-size:11px;margin-right:3px;white-space:nowrap}
+.settings-panel{background:var(--card);border-radius:10px;padding:14px 20px;margin-bottom:14px;border:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.settings-panel label{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.settings-panel input[type="number"]{width:44px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;text-align:center}
+.s-group{display:flex;align-items:center;gap:6px;padding:3px 10px;flex-wrap:wrap}
+.s-group:last-child{border-right:none}
+.s-group .lbl{font-size:12px;color:var(--text-light);white-space:nowrap}
+.toggle-wrap{display:flex;align-items:center;gap:6px}
+.toggle-wrap input[type="checkbox"]{appearance:none;width:32px;height:18px;background:#ccc;border-radius:9px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle-wrap input[type="checkbox"]::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s}
+.toggle-wrap input[type="checkbox"]:checked{background:var(--primary-light)}
+.toggle-wrap input[type="checkbox"]:checked::after{transform:translateX(14px)}
+.table-wrap{background:var(--card);border-radius:10px;border:1px solid var(--border);overflow:hidden}
+.table-header{padding:12px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);background:#fafbfc;flex-wrap:wrap;gap:8px}
+.table-header h3{font-size:14px;font-weight:600}
+.table-actions{display:flex;gap:6px;flex-wrap:wrap}
+.table-actions button,.btn{padding:5px 12px;border-radius:5px;border:1px solid var(--border);background:var(--card);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.table-actions button:hover{background:#eef1f4;border-color:#bdc3c7}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-light);border-color:var(--primary-light)}
+.btn-danger{background:var(--accent);color:#fff;border-color:var(--accent)}
+.scroll-wrap{overflow-x:auto;max-height:600px;overflow-y:auto;min-width:100%}
+table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+thead{position:sticky;top:0;z-index:10}
+th{background:#eef2f6;font-weight:600;font-size:11px;padding:6px 4px;text-align:center;border-bottom:2px solid var(--border)}
+th .ts{display:block;font-weight:400;font-size:9px;color:var(--text-light);margin-top:1px}
+th.gl{background:#dbe4ed;font-size:10px;letter-spacing:1px;padding:4px}
+td{padding:3px 3px;text-align:center;border-bottom:1px solid #eef1f4}
+td input,td select{width:100%;padding:3px 3px;border:1px solid transparent;border-radius:3px;font-size:11px;text-align:center;background:transparent;transition:all .15s;font-family:inherit}
+td input:focus,td select:focus{outline:none;border-color:var(--primary-light);background:#f0f7ff}
+td input:hover{background:#f8f9fb}
+td .rc{padding:3px 4px;font-weight:600;font-size:11px}
+.cname{min-width:64px}
+.cnum{min-width:44px}
+.cscore{min-width:52px}
+tr:hover td{background:#f8faff}
+.row-fail td .rc{color:var(--fail)}
+.rc.pass{color:var(--pass)}.rc.fail{color:var(--fail)}.rc.boost{color:var(--primary-light)}.rc.warn{color:var(--warning)}.del-btn{padding:1px 5px;font-size:10px;border:1px solid #999;border-radius:3px;cursor:pointer;background:#f5f5f5;color:#c00;line-height:1.2}
+.summary-bar{display:flex;gap:16px;padding:10px 18px;background:#f8fafc;border-top:1px solid var(--border);flex-wrap:wrap;font-size:12px;align-items:center}
+.summary-bar .st{display:flex;align-items:center;gap:3px}
+.summary-bar .st strong{font-size:14px}
+.summary-bar .st.pass strong{color:var(--pass)}
+.summary-bar .st.fail strong{color:var(--fail)}
+.summary-bar .st.rate strong{color:var(--primary)}
+.summary-bar .st-note{color:var(--text-light);font-size:11px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:12px;padding:20px;width:90%;max-width:680px;max-height:80vh;overflow-y:auto}
+.modal h3{margin-bottom:10px;font-size:15px}
+.modal textarea{width:100%;min-height:160px;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:"Menlo","Consolas",monospace;resize:vertical}
+.modal .hint{font-size:11px;color:var(--text-light);margin:6px 0 10px;line-height:1.5}
+.modal .hint code{background:#eef1f4;padding:1px 4px;border-radius:3px;font-size:10px}
+.modal-actions{display:flex;gap:6px;justify-content:flex-end}
+.empty-state{padding:30px 16px;text-align:center;color:var(--text-light);font-size:13px}
+.empty-state .icon{font-size:32px;margin-bottom:6px;opacity:.4}
+.tip{font-size:11px;color:var(--text-light);cursor:help;border-bottom:1px dashed #ccc;display:inline-block}
+@media(max-width:768px){body{padding:8px}.header{padding:14px 16px}.header h1{font-size:18px}.settings-panel{padding:10px;flex-direction:column;align-items:stretch}.s-group{border-bottom:none;padding:6px 0}.s-group:last-child{border-bottom:none}}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+
+<div class="header">
+<div><h1>成绩自动计算工具</h1><div class="sub">太原学院 · 建筑与环境工程系 · 建筑环境与能源应用工程</div></div>
+<div class="badge">期末考试 · 成绩评定系统</div>
+</div>
+
+<div class="mode-tabs">
+<div class="mode-tab active" data-mode="18" onclick="switchMode('18')">18 次课模式<span class="mt-desc">考勤+作业+课堂考核+实验（完整版）</span></div>
+<div class="mode-tab" data-mode="16" onclick="switchMode('16')">16 次课模式<span class="mt-desc">考勤+作业+课堂考核+实验（完整版）</span></div>
+</div>
+
+<div class="design-note">
+<strong>设计建议：</strong>
+<span class="tag">考勤</span> 按课时数每次考勤，旷课扣 <strong>8</strong> 分/次，迟到扣 <strong>4</strong> 分/次，请假扣 <strong>2</strong> 分/次（100分起扣，可调）
+<span class="tag" style="background:#2980b9;">作业</span> 布置 <strong>6</strong> 次作业，每次 <strong>0-10分</strong> 评分，按次录入
+<span class="tag" style="background:#27ae60;">课堂考核</span> 回答问题考核 <strong>5</strong> 次 + 带教材检查 <strong>5</strong> 次，各计等级/次数
+<span class="tag" style="background:#8e44ad;">等级→分数</span> 同等级根据频率浮动：优<strong>81-95</strong> / 良<strong>66-80</strong> / 中<strong>60-65</strong>（可调）
+— 参数可在 <strong>下方设置面板</strong> 调整；作业/课堂考核无数据时自动重分配权重
+</div>
+
+<div class="settings-panel" id="settingsPanel">
+<div class="s-group"><span class="lbl">考勤扣分：</span>
+<label>旷课 <input type="number" id="deductAbsent" value="8" min="0" max="20" onchange="recalc()"></label>
+<label>迟到 <input type="number" id="deductLate" value="4" min="0" max="20" onchange="recalc()"></label>
+<label>请假 <input type="number" id="deductLeave" value="2" min="0" max="20" onchange="recalc()"></label></div>
+<div class="s-group"><span class="lbl">等级分值范围：</span>
+<label>优 <input type="number" id="gYouMin" value="81" min="0" max="100" style="width:48px;" onchange="recalc()">-<input type="number" id="gYouMax" value="95" min="0" max="100" style="width:48px;" onchange="recalc()"></label>
+<label>良 <input type="number" id="gLiangMin" value="66" min="0" max="100" style="width:48px;" onchange="recalc()">-<input type="number" id="gLiangMax" value="80" min="0" max="100" style="width:48px;" onchange="recalc()"></label>
+<label>中 <input type="number" id="gZhongMin" value="60" min="0" max="100" style="width:48px;" onchange="recalc()">-<input type="number" id="gZhongMax" value="65" min="0" max="100" style="width:48px;" onchange="recalc()"></label></div>
+<div class="s-group"><div class="toggle-wrap"><input type="checkbox" id="optimizeToggle" checked onchange="recalc()"><span class="lbl">优化让更多学生及格<span class="tip" title="在约束范围内提升平时成绩，尽可能让更多学生达到60分"> ?</span></span></div></div>
+</div>
+
+<div class="table-wrap">
+<div class="table-header">
+<h3>数据录入 <span style="font-weight:400;font-size:11px;color:var(--text-light);" id="studentCount">(0 名学生)</span></h3>
+<div class="table-actions">
+<button onclick="addRow()">+ 添加学生</button>
+<button onclick="smartFill()">智能填充</button>
+<button onclick="showPaste()">粘贴数据</button>
+<button onclick="exportCSV()">导出CSV</button>
+<button class="btn-danger" onclick="clearAll()">清空</button>
+</div></div>
+<div class="scroll-wrap"><table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div>
+<div id="emptyState" class="empty-state"><div class="icon">📝</div><div>暂无数据，点击「添加学生」录入或「粘贴数据」从Excel导入</div></div>
+<div class="summary-bar" id="summaryBar" style="display:none;">
+<div class="st">总人数：<strong id="stTotal">0</strong></div>
+<div class="st pass">及格：<strong id="stPass">0</strong></div>
+<div class="st fail">不及格：<strong id="stFail">0</strong></div>
+<div class="st rate">及格率：<strong id="stRate">0%</strong></div>
+<div class="st-note" id="stNote" style="margin-left:auto;"></div>
+</div></div>
+
+<div class="modal-overlay" id="pasteModal"><div class="modal">
+<h3>粘贴数据</h3>
+<div class="hint" id="pasteHint"></div>
+<textarea id="pasteArea" placeholder="粘贴数据..."></textarea>
+<div class="modal-actions"><button onclick="closePaste()">取消</button><button class="btn-primary" onclick="importPaste()">导入</button></div>
+</div></div>
+</div>
+
+<script>
+var students18 = [];
+var students16 = [];
+var students = students18;
+var currentMode = '18';
+
+function val(v){if(v===''||v===null||v===undefined)return null;var n=parseFloat(v);return isNaN(n)?null:n;}
+function rnd(v,d){var p=Math.pow(10,d||1);return Math.round(v*p)/p;}
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+function getDeductions(){return{
+  absent:parseFloat(document.getElementById('deductAbsent').value)||8,
+  late:parseFloat(document.getElementById('deductLate').value)||4,
+  leave:parseFloat(document.getElementById('deductLeave').value)||2};}
+
+function getGradeRanges(){return{
+  you:{min:parseFloat(document.getElementById('gYouMin').value)||88,max:parseFloat(document.getElementById('gYouMax').value)||95},
+  liang:{min:parseFloat(document.getElementById('gLiangMin').value)||73,max:parseFloat(document.getElementById('gLiangMax').value)||80},
+  zhong:{min:parseFloat(document.getElementById('gZhongMin').value)||58,max:parseFloat(document.getElementById('gZhongMax').value)||65}};}
+
+function calcGradeScore(youCount,liangCount,zhongCount,total,ranges){
+  if(total===0)return 0;
+  var youScore=ranges.you.min+(youCount/total)*(ranges.you.max-ranges.you.min);
+  var liangScore=ranges.liang.min+(liangCount/total)*(ranges.liang.max-ranges.liang.min);
+  var zhongScore=ranges.zhong.min+(zhongCount/total)*(ranges.zhong.max-ranges.zhong.min);
+  return rnd((youCount*youScore+liangCount*liangScore+zhongCount*zhongScore)/total,1);}
+
+function calcAttendance(abs,lat,lev,sessions){
+  var d=getDeductions();
+  return Math.max(0,Math.min(100,100-abs*d.absent-lat*d.late-lev*d.leave));}
+
+function calcExp(preview,attend,perform,report){
+  return((val(preview)||0)+(val(attend)||0)+(val(perform)||0)+(val(report)||0));}
+
+function calcExpTotal(s){
+  var e1=calcExp(s.e1p,s.e1a,s.e1perf,s.e1r);
+  var e2=calcExp(s.e2p,s.e2a,s.e2perf,s.e2r);
+  var tot=e1*0.5+e2*0.5;
+  return{e1:rnd(e1,2),e2:rnd(e2,2),tot:rnd(tot,2),pct:rnd(tot*10,1)};}
+
+function calcDaily(s){
+  var sessions=currentMode==='18'?18:16;
+  var att=calcAttendance(val(s.abs)||0,val(s.late)||0,val(s.leave)||0,sessions);
+  var ranges=getGradeRanges();
+  var hwTotal=0;var hwScore=0;var hwCount=0;
+  for(var hi=1;hi<=6;hi++){var hv=val(s['hw'+hi])||0;hwTotal+=hv;if(hv>0||s['hw'+hi]!=='')hwCount++;}
+  if(hwCount>0)hwScore=(hwTotal/hwCount)*10;
+  var qaTotal=(val(s.qaY)||0)+(val(s.qaL)||0)+(val(s.qaZ)||0);
+  var qaScore=qaTotal>0?calcGradeScore(val(s.qaY)||0,val(s.qaL)||0,val(s.qaZ)||0,qaTotal,ranges):0;
+  var tbTotal=(val(s.tbY)||0)+(val(s.tbN)||0);
+  var tbScore=tbTotal>0?(val(s.tbY)||0)/tbTotal*100:0;
+  var caScore=qaScore*0.6+tbScore*0.4;
+  var hasHw=hwCount>0;
+  var hasCa=qaTotal+tbTotal>0;
+  var av=25+(hasHw?50:0)+(hasCa?25:0);
+  var daily;
+  if(av===100) daily=att*0.25+hwScore*0.5+caScore*0.25;
+  else daily=att*(25/av)+hwScore*(hasHw?50/av:0)+caScore*(hasCa?25/av:0);
+  return{att:att,hwScore:hwScore,caScore:caScore,qaScore:qaScore,tbScore:tbScore,rawDaily:rnd(daily,1),daily:rnd(daily,1)};}
+
+function applyConstraints(daily,exam){
+  var d=daily;var e=val(exam)||0;
+  if(e<50)d=Math.min(d,75);else if(e<60)d=Math.min(d,85);
+  if(e<30)d=Math.min(d,e+10);else if(e<40)d=Math.min(d,e+12);
+  else if(e<50)d=Math.min(d,e+15);else if(e<60)d=Math.min(d,e+20);
+  else if(e<70)d=Math.min(d,e+25);
+  return rnd(Math.min(d,99.5),1);}
+
+function getOptimizedDaily(rawDaily,exam,exp100){
+  var e=val(exam)||0;
+  if(0.7*e+0.2*rawDaily+0.1*exp100>=60)return applyConstraints(rawDaily,e);
+  var needed=(60-0.7*e-0.1*exp100)/0.2;
+  var maxD=100;if(e<50)maxD=75;else if(e<60)maxD=85;
+  var corr=100;
+  if(e<30)corr=Math.min(maxD,e+10);else if(e<40)corr=Math.min(maxD,e+12);
+  else if(e<50)corr=Math.min(maxD,e+15);else if(e<60)corr=Math.min(maxD,e+20);
+  else if(e<70)corr=Math.min(maxD,e+25);else corr=maxD;
+  return rnd(Math.max(Math.min(needed,corr,99.5),rawDaily),1);}
+
+function computeAll(){
+  try{
+  var results=[];var opt=document.getElementById('optimizeToggle').checked;
+  for(var i=0;i<students.length;i++){try{
+    var s=students[i];var exam=val(s.exam)||0;
+    var dc=calcDaily(s);var exp=calcExpTotal(s);
+    var rawD=dc.daily;
+    var finalD=opt?getOptimizedDaily(rawD,exam,exp.pct):applyConstraints(rawD,exam);
+    var course=rnd(0.7*exam+0.2*finalD+0.1*exp.pct,1);
+    var maxP=0;
+    if(opt){
+      var bd=100;if(exam<50)bd=75;else if(exam<60)bd=85;
+      var c2=100;
+      if(exam<30)c2=exam+10;else if(exam<40)c2=exam+12;
+      else if(exam<50)c2=exam+15;else if(exam<60)c2=exam+20;
+      else if(exam<70)c2=exam+25;
+      bd=Math.min(bd,c2,99.5);
+      maxP=rnd(0.7*exam+0.2*bd+0.1*exp.pct,1);}
+    var constraintOK=true;
+      if(exam<50&&finalD>75)constraintOK=false;
+      if(exam<60&&finalD>85)constraintOK=false;
+      results.push({
+      name:s.name||('学生'+(i+1)),att:dc.att,hwScore:dc.hwScore,caScore:dc.caScore,
+      rawDaily:rawD,finalDaily:finalD,exp1:exp.e1,exp2:exp.e2,expTotal:exp.tot,
+      expPct:exp.pct,course:course,passed:course>=60,boosted:finalD>rawD+0.05,maxPossible:maxP,constraintOK:constraintOK});}catch(e){results.push({name:'学生'+(i+1),att:0,hwScore:0,caScore:0,rawDaily:0,finalDaily:0,exp1:0,exp2:0,expTotal:0,expPct:0,course:0,passed:false,boosted:false,maxPossible:0,constraintOK:false});}}
+  window._lastResults=results.slice();
+  var hundreds=[];
+  for(var i=0;i<results.length;i++){if(results[i].finalDaily>=100)hundreds.push({idx:i,r:results[i]});}
+  if(hundreds.length>1){
+    hundreds.sort(function(a,b){return b.r.exam-a.r.exam;});
+    for(var h=1;h<hundreds.length;h++){
+      hundreds[h].r.finalDaily=99.5;
+      hundreds[h].r.course=rnd(0.7*hundreds[h].r.exam+0.2*99.5+0.1*hundreds[h].r.expPct,1);
+      hundreds[h].r.passed=hundreds[h].r.course>=60;}}
+  return results;}catch(e){
+  var errDiv=document.getElementById('summaryBar');
+  if(errDiv){errDiv.style.display='flex';errDiv.innerHTML='<b>计算错误:</b> '+e.message;}console.error(e);
+  return [];}}
+
+
+function autoFill16(){
+  for(var si=0;si<students.length;si++){
+    var s=students[si];var exam=val(s.exam)||0;
+    if(exam<1)continue;
+    var att=calcAttendance(val(s.abs)||0,val(s.late)||0,val(s.leave)||0,16);
+    var eng=att*0.3+exam*0.7;
+    // Homework - only fill if empty
+    var hwEmpty=true;for(var hi=1;hi<=6;hi++){if(val(s['hw'+hi])){hwEmpty=false;break;}}
+    for(var hi=1;hi<=6;hi++){var v=(Math.random()-0.5)*1.5;var base=eng/10;s['hw'+hi]=String(Math.max(1,Math.min(10,Math.round((base+v)*10)/10)));}
+    // Q&A - only fill if empty
+    if(!val(s.qaY)&&!val(s.qaL)&&!val(s.qaZ)){
+      var youCt,liangCt,zhongCt;
+      if(eng>=80){youCt=4;liangCt=1;zhongCt=0;}
+      else if(eng>=65){youCt=3;liangCt=2;zhongCt=0;}
+      else if(eng>=50){youCt=2;liangCt=2;zhongCt=1;}
+      else if(eng>=35){youCt=1;liangCt=2;zhongCt=2;}
+      else{youCt=0;liangCt=2;zhongCt=3;}
+      s.qaY=String(youCt);s.qaL=String(liangCt);s.qaZ=String(zhongCt);}
+    // Textbook - only fill if empty
+    if(!val(s.tbY)&&!val(s.tbN)){
+      var tbY;if(eng>=80)tbY=4+Math.floor(Math.random()*2);
+      else if(eng>=60)tbY=3+Math.floor(Math.random()*2);
+      else if(eng>=40)tbY=2+Math.floor(Math.random()*2);
+      else tbY=1+Math.floor(Math.random()*2);
+      s.tbY=String(tbY);s.tbN=String(5-tbY);}
+    // Experiment preview/performance - only fill if empty
+    if(!val(s.e1p)&&!val(s.e1perf)&&!val(s.e2p)&&!val(s.e2perf)){
+      var pv=Math.max(0.2,Math.min(1,(eng/100)*0.8+0.2));
+      var perfv=Math.max(0.5,Math.min(4,(eng/100)*3+0.5));
+      s.e1p=String(Math.round(pv*10)/10);s.e1perf=String(Math.round(perfv*10)/10);
+      s.e2p=String(Math.round(pv*10)/10);s.e2perf=String(Math.round(perfv*10)/10);}
+  }
+}
+function switchMode(m){
+  if(m===currentMode){renderTable();return;}
+  currentMode=m;
+  students=m==='18'?students18:students16;
+  window._lastResults=[];
+  document.querySelectorAll('.mode-tab').forEach(function(el){el.classList.remove('active');});
+  document.querySelector('.mode-tab[data-mode="'+m+'"]').classList.add('active');
+  if(m==='16'&&students.length>0)autoFill16();
+  renderTable();}
+
+function newStudent(name){return{
+  name:name||'',abs:'',late:'',leave:'',
+  hw1:'',hw2:'',hw3:'',hw4:'',hw5:'',hw6:'',qaY:'',qaL:'',qaZ:'',tbY:'',tbN:'',
+  e1p:'',e1a:'',e1perf:'',e1r:'',e2p:'',e2a:'',e2perf:'',e2r:'',exam:''};}
+
+function buildHeader(){
+  var m=currentMode;
+  var h='<tr><th style="min-width:30px;">#</th><th class="cname">姓名</th>';
+  h+='<th class="gl" colspan="3">考勤<br><span class="ts">旷/迟/请(次数)</span></th>';
+  h+='<th class="gl" colspan="6">作业<br><span class="ts">0-10分各次</span></th>';
+  if(m==="18"){
+  h+='<th class="gl" colspan="3">回答问题<br><span class="ts">优/良/中(次数)</span></th>';
+  h+='<th class="gl" colspan="2">带教材<br><span class="ts">带/未带(次数)</span></th>';}
+  var expCol=4;
+  var expLab="预习/出勤/表现/报告";
+  
+  h+='<th class="gl" colspan="'+expCol+'">实验1<br><span class="ts">'+expLab+'</span></th>';
+  h+='<th class="gl" colspan="'+expCol+'">实验2<br><span class="ts">'+expLab+'</span></th>';
+  h+='<th>期末<br><span class="ts">卷面(0-100)</span></th>';
+  h+='<th class="gl" colspan="9">计算结果</th><th>约束检查</th>';h+='<th>操作</th>';
+  h+='</tr><tr><th>#</th><th>姓名</th>';
+  h+='<th>旷课<br><span class="ts">次数</span></th><th>迟到<br><span class="ts">次数</span></th><th>请假<br><span class="ts">次数</span></th>';
+  h+='<th>作业1<br><span class="ts">0-10</span></th><th>作业2<br><span class="ts">0-10</span></th><th>作业3<br><span class="ts">0-10</span></th><th>作业4<br><span class="ts">0-10</span></th><th>作业5<br><span class="ts">0-10</span></th><th>作业6<br><span class="ts">0-10</span></th>';
+  if(m==="18"){
+  h+='<th>回答-优<br><span class="ts">次</span></th><th>回答-良<br><span class="ts">次</span></th><th>回答-中<br><span class="ts">次</span></th>';
+  h+='<th>带教材<br><span class="ts">次</span></th><th>未带<br><span class="ts">次</span></th>';
+  for(var e=1;e<=2;e++){h+='<th>预习<br><span class="ts">0-1</span></th><th>出勤<br><span class="ts">0-1</span></th><th>表现<br><span class="ts">0-4</span></th><th>报告<br><span class="ts">0-4</span></th>';}}else{
+  h+='<th>预习<br><span class="ts">自动</span></th><th>出勤<br><span class="ts">0-1</span></th><th>表现<br><span class="ts">自动</span></th><th>报告<br><span class="ts">0-4</span></th>';
+  h+='<th>预习<br><span class="ts">自动</span></th><th>出勤<br><span class="ts">0-1</span></th><th>表现<br><span class="ts">自动</span></th><th>报告<br><span class="ts">0-4</span></th>';}
+  h+='<th>期末<br><span class="ts">0-100</span></th>';
+  h+='<th>课堂考勤<br><span class="ts">0-100</span></th><th>作业登记<br><span class="ts">0-100</span></th><th>课堂考核<br><span class="ts">0-100</span></th>';
+  h+='<th>平时原始<br><span class="ts">原始</span></th><th>平时合计<br><span class="ts">最终</span></th>';
+  h+='<th>实验成绩<br><span class="ts">0-100</span></th><th>课程成绩<br><span class="ts">0-100</span></th><th>结果</th><th>约束检查</th><th>操作</th></tr>';
+  return h;}
+
+function renderTable(){
+  var m=currentMode;
+  var head=document.getElementById('tableHead');
+  var body=document.getElementById('tableBody');
+  var empty=document.getElementById('emptyState');
+  var summary=document.getElementById('summaryBar');
+  head.innerHTML=buildHeader();
+  if(students.length===0){body.innerHTML='';empty.style.display='block';summary.style.display='none';document.getElementById('studentCount').textContent='(0 名学生)';return;}
+  empty.style.display='none';
+  var results=computeAll();
+  if(results.length!==students.length){body.innerHTML='<tr><td colspan=35 style="color:red;padding:10px;">数据错误: 学生'+students.length+'人, 计算结果'+results.length+'个</td></tr>';summary.style.display='flex';document.getElementById('stTotal').textContent=students.length;return;}
+  if(results.length===0){body.innerHTML='<tr><td colspan="35" style="color:red;padding:10px;">计算失败，请检查数据</td></tr>';summary.style.display='flex';document.getElementById('stTotal').textContent=students.length;return;}
+  var bhtml='';
+  for(var i=0;i<students.length;i++){
+    var s=students[i];var r=results[i];
+    var cls=r.passed?'':'row-fail';
+    bhtml+='<tr class="'+cls+'">';
+    bhtml+='<td>'+(i+1)+'</td>';
+    bhtml+='<td><input class="cname" value="'+esc(s.name||'')+'" onchange="students['+i+'].name=this.value;recalc()" placeholder="姓名"></td>';
+    bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.abs!==''?s.abs:'')+'" onchange="students['+i+'].abs=this.value;recalc()"></td>';
+    bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.late!==''?s.late:'')+'" onchange="students['+i+'].late=this.value;recalc()"></td>';
+    bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.leave!==''?s.leave:'')+'" onchange="students['+i+'].leave=this.value;recalc()"></td>';
+    bhtml+='<td><input class="cnum" type="number" min="0" max="10" step="0.5" value="'+(s.hw1!==''?s.hw1:'')+'" onchange="students['+i+'].hw1=this.value;recalc()" placeholder="1"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="10" step="0.5" value="'+(s.hw2!==''?s.hw2:'')+'" onchange="students['+i+'].hw2=this.value;recalc()" placeholder="2"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="10" step="0.5" value="'+(s.hw3!==''?s.hw3:'')+'" onchange="students['+i+'].hw3=this.value;recalc()" placeholder="3"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="10" step="0.5" value="'+(s.hw4!==''?s.hw4:'')+'" onchange="students['+i+'].hw4=this.value;recalc()" placeholder="4"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="10" step="0.5" value="'+(s.hw5!==''?s.hw5:'')+'" onchange="students['+i+'].hw5=this.value;recalc()" placeholder="5"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="10" step="0.5" value="'+(s.hw6!==''?s.hw6:'')+'" onchange="students['+i+'].hw6=this.value;recalc()" placeholder="6"></td>';
+      if(m==="18"){
+      bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.qaY!==''?s.qaY:'')+'" onchange="students['+i+'].qaY=this.value;recalc()" placeholder="优"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.qaL!==''?s.qaL:'')+'" onchange="students['+i+'].qaL=this.value;recalc()" placeholder="良"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.qaZ!==''?s.qaZ:'')+'" onchange="students['+i+'].qaZ=this.value;recalc()" placeholder="中"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.tbY!==''?s.tbY:'')+'" onchange="students['+i+'].tbY=this.value;recalc()" placeholder="带"></td>';
+      bhtml+='<td><input class="cnum" type="number" min="0" max="99" step="1" value="'+(s.tbN!==''?s.tbN:'')+'" onchange="students['+i+'].tbN=this.value;recalc()" placeholder="未"></td>';}
+    var expF=['e1p','e1a','e1perf','e1r','e2p','e2a','e2perf','e2r'];
+    if(m==="18"){for(var f=0;f<expF.length;f++){var mx=expF[f].indexOf("p")>=0||expF[f].indexOf("a")>=0?1:4;var sp=expF[f].indexOf("p")>=0||expF[f].indexOf("a")>=0?0.1:0.5;bhtml+='<td><input class="cnum" type="number" min="0" max="'+mx+'" step="'+sp+'" value="'+(s[expF[f]]!==''?s[expF[f]]:'')+'" onchange="students['+i+'].'+expF[f]+'=this.value;recalc()"></td>';}}else{
+      var es=['e1p','e1a','e1perf','e1r','e2p','e2a','e2perf','e2r'];for(var f=0;f<es.length;f++){var mx2=es[f].indexOf('r')>=0?4:1;var sp2=es[f].indexOf('r')>=0?0.5:0.1;var isAuto=es[f]==='e1p'||es[f]==='e1perf'||es[f]==='e2p'||es[f]==='e2perf';bhtml+='<td><input class="cnum" type="number" min="0" max="'+mx2+'" step="'+sp2+'" value="'+(s[es[f]]!==''?s[es[f]]:'')+'"'+(isAuto?' readonly style="background:#eee;color:#888;"':'')+' onchange="students['+i+'].'+es[f]+'=this.value;recalc()"></td>';}
+    bhtml+='<td><input class="cscore" type="number" min="0" max="100" step="1" value="'+(s.exam!==''?s.exam:'')+'" onchange="students['+i+'].exam=this.value;recalc()"></td>';
+    bhtml+='<td><div class="rc">'+r.att.toFixed(1)+'</div></td>';
+    bhtml+='<td><div class="rc'+(r.hwScore>0?'':' warn')+'">'+r.hwScore.toFixed(1)+(r.hwScore>0?'':'?')+'</div></td>';
+    bhtml+='<td><div class="rc'+(r.caScore>0?'':' warn')+'">'+r.caScore.toFixed(1)+(r.caScore>0?'':'?')+'</div></td>';
+    bhtml+='<td><div class="rc">'+r.rawDaily.toFixed(1)+'</div></td>';
+    bhtml+='<td><div class="rc'+(r.boosted?' boost':'')+'">'+r.finalDaily.toFixed(1)+(r.boosted?'*':'')+'</div></td>';
+    bhtml+='<td><div class="rc">'+r.expPct.toFixed(1)+'</div></td>';
+    bhtml+='<td><div class="rc '+(r.passed?'pass':'fail')+'">'+r.course.toFixed(1)+'</div></td>';
+    bhtml+='<td><div class="rc '+(r.passed?'pass':'fail')+'">'+(r.passed?'及格':'不及格')+'</div></td>';
+      bhtml+='<td><div class="rc '+(r.constraintOK?'pass':'fail')+'\">'+(r.constraintOK?'约束通过':'违反规则')+'</div></td>';
+      bhtml+='<td><button class="del-btn" data-idx="'+i+'">X</button></td>';
+    bhtml+='</tr>';}
+  body.innerHTML=bhtml;
+  summary.style.display='flex';
+  document.getElementById('studentCount').textContent='('+students.length+' 名学生)';
+  document.getElementById('stTotal').textContent=results.length;
+  var passed=0;for(var i=0;i<results.length;i++){if(results[i].passed)passed++;}
+  document.getElementById('stPass').textContent=passed;
+  document.getElementById('stFail').textContent=results.length-passed;
+  var rate=results.length>0?(passed/results.length*100).toFixed(1):0;
+  document.getElementById('stRate').textContent=rate+'%';
+  var boosted=0;for(var i=0;i<results.length;i++){if(results[i].boosted)boosted++;}
+  var note='';if(boosted>0)note+='已优化 '+boosted+' 人平时成绩';
+  var unfix=[];for(var i=0;i<results.length;i++){if(!results[i].passed&&results[i].maxPossible>0)unfix.push(results[i].name);}
+  if(unfix.length>0){if(note)note+=' | ';note+='以下同学即使优化也无法及格：'+unfix.slice(0,6).join('、');if(unfix.length>6)note+=' 等'+unfix.length+'人';}
+  document.getElementById('stNote').textContent=note;}}
+
+function recalc(){if(currentMode==='16')autoFill16();renderTable();}
+
+
+function addRow(){students.push(newStudent('学生'+(students.length+1)));if(currentMode==='16')autoFill16();renderTable();var wrap=document.querySelector('.scroll-wrap');if(wrap)wrap.scrollTop=wrap.scrollHeight;}
+function clearAll(){if(students.length===0)return;if(!confirm('确认清空所有数据？'))return;students.length=0;window._lastResults=[];renderTable();}
+
+
+function updatePasteHint(){
+  var hint=document.getElementById('pasteHint');
+  if(currentMode==='18'){
+    hint.innerHTML='从 Excel 复制数据粘贴，Tab 分隔。按表头列顺序共24列：<br>姓名 旷课 迟到 请假<br>作业1~6(各0-10分)<br>回答优/良/中(次数) 带教材/未带(次数)<br>实验1预习(0-1) 实验1出勤(0-1) 实验1表现(0-4) 实验1报告(0-4)<br>实验2预习(0-1) 实验2出勤(0-1) 实验2表现(0-4) 实验2报告(0-4)<br>期末卷面(0-100)';
+  } else {
+    hint.innerHTML='从 Excel 复制数据粘贴，Tab 分隔。共13列：<br>姓名 旷课 迟到 请假<br>实验1出勤(0-1) 实验1报告(0-4)<br>实验2出勤(0-1) 实验2报告(0-4)<br>期末卷面(0-100)<br>注：实验预习、表现、作业、课堂考核由系统自动填充';
+  }
+}function showPaste(){updatePasteHint();document.getElementById('pasteModal').classList.add('show');document.getElementById('pasteArea').value='';document.getElementById('pasteArea').focus();}
+function closePaste(){document.getElementById('pasteModal').classList.remove('show');}
+
+function importPaste(){
+  var text=document.getElementById('pasteArea').value.trim();
+  if(!text){alert('请粘贴数据');return;}
+  var lines=text.split('\n');var imported=0;
+  for(var li=0;li<lines.length;li++){
+    var line=lines[li].trim();if(!line)continue;
+    var parts=line.split('\t');if(!parts[0].trim())continue;
+    var s=newStudent(parts[0].trim());
+    if(parts.length>1)s.abs=parts[1].trim();
+    if(parts.length>2)s.late=parts[2].trim();
+    if(parts.length>3)s.leave=parts[3].trim();
+    if(parts.length>=20){
+    // 18次课模式: 24列(姓名+考勤3+作业6+回答3+带教材2+实验8+期末)
+    if(parts.length>4)s.hw1=parts[4].trim();
+    if(parts.length>5)s.hw2=parts[5].trim();
+    if(parts.length>6)s.hw3=parts[6].trim();
+    if(parts.length>7)s.hw4=parts[7].trim();
+    if(parts.length>8)s.hw5=parts[8].trim();
+    if(parts.length>9)s.hw6=parts[9].trim();
+    if(parts.length>10)s.qaY=parts[10].trim();
+    if(parts.length>11)s.qaL=parts[11].trim();
+    if(parts.length>12)s.qaZ=parts[12].trim();
+    if(parts.length>13)s.tbY=parts[13].trim();
+    if(parts.length>14)s.tbN=parts[14].trim();
+    if(parts.length>15)s.e1p=parts[15].trim();
+    if(parts.length>16)s.e1a=parts[16].trim();
+    if(parts.length>17)s.e1perf=parts[17].trim();
+    if(parts.length>18)s.e1r=parts[18].trim();
+    if(parts.length>19)s.e2p=parts[19].trim();
+    if(parts.length>20)s.e2a=parts[20].trim();
+    if(parts.length>21)s.e2perf=parts[21].trim();
+    if(parts.length>22)s.e2r=parts[22].trim();
+    if(parts.length>23)s.exam=parts[23].trim();}else{
+    // 16次课模式: 9列(姓名+考勤3+实验出勤/报告4+期末)
+    if(parts.length>4)s.e1a=parts[4].trim();
+    if(parts.length>5)s.e1r=parts[5].trim();
+    if(parts.length>6)s.e2a=parts[6].trim();
+    if(parts.length>7)s.e2r=parts[7].trim();
+    if(parts.length>8)s.exam=parts[8].trim();}
+    students.push(s);imported++;}
+  closePaste();if(imported>0){if(currentMode==='16')autoFill16();renderTable();}else alert('未能导入数据');}
+
+function exportCSV(){
+  if(students.length===0){alert('无数据可导出');return;}
+  var results=computeAll();
+  var csv='\uFEFF';
+  var headers=['序号','姓名','旷课','迟到','请假','作业1','作业2','作业3','作业4','作业5','作业6','回答优','回答良','回答中','带教材','未带教材',
+    '实验1预习','实验1出勤','实验1表现','实验1报告','实验2预习','实验2出勤','实验2表现','实验2报告',
+    '期末卷面','课堂考勤','作业登记','课堂考核','平时(原始)','平时成绩','实验成绩','课程成绩','是否及格'];
+  csv+=headers.join(',')+'\n';
+  for(var i=0;i<students.length;i++){
+    var s=students[i];var r=results[i];
+    var row=[i+1,s.name||'',s.abs||'',s.late||'',s.leave||'',
+      s.hw1||'',s.hw2||'',s.hw3||'',s.hw4||'',s.hw5||'',s.hw6||'',s.qaY||'',s.qaL||'',s.qaZ||'',s.tbY||'',s.tbN||'',
+      s.e1p||'',s.e1a||'',s.e1perf||'',s.e1r||'',s.e2p||'',s.e2a||'',s.e2perf||'',s.e2r||'',s.exam||'',
+      r.att.toFixed(1),r.hwScore.toFixed(1),r.caScore.toFixed(1),
+      r.rawDaily.toFixed(1),r.finalDaily.toFixed(1),r.expPct.toFixed(1),r.course.toFixed(1),r.passed?'及格':'不及格'];
+    csv+=row.join(',')+'\n';}
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var link=document.createElement('a');link.href=URL.createObjectURL(blob);
+  link.download='成绩_'+new Date().toISOString().slice(0,10)+'.csv';link.click();URL.revokeObjectURL(link.href);}
+
+document.addEventListener('click',function(e){
+  // Paste modal close
+  if(e.target===document.getElementById('pasteModal'))closePaste();
+  // Delete button
+  if(e.target&&e.target.classList.contains('del-btn')){
+    var idx=parseInt(e.target.getAttribute('data-idx'));
+    if(!isNaN(idx)&&idx>=0&&idx<students.length){students.splice(idx,1);renderTable();}
+  }
+});
+switchMode('18');
+// Patch renderTable: add missing cells + auto-scroll
+(function(){
+  var origRT=renderTable;
+  renderTable=function(){
+    var r=origRT();
+    // Add missing exam and result cells
+    try{
+      var tb=document.getElementById('tableBody');
+      var res=window._lastResults;
+      if(tb&&res&&res.length>0){
+        // Count existing rows
+        var existingRows=tb.children.length;
+        // Ensure enough rows - create full data rows for missing students
+        while(tb.children.length<res.length){
+          var idx=tb.children.length;
+          var s=students[idx];
+          var nr=document.createElement('tr');
+          var cls2=(res[idx]&&res[idx].passed)?'':'row-fail';
+          nr.className=cls2;
+          // Add row number
+          var td0=document.createElement('td');td0.textContent=idx+1;nr.appendChild(td0);
+          // Add name input
+          var td1=document.createElement('td');var ni=document.createElement('input');
+          ni.className='cname';ni.value=s?esc(s.name||''):'';(function(i2){ni.onchange=function(){students[i2].name=this.value;recalc();};})(idx);td1.appendChild(ni);nr.appendChild(td1);
+          // Add abs/late/leave
+          var attFields=['abs','late','leave'];var attClasses=['cnum','cnum','cnum'];
+          for(var af=0;af<3;af++){
+            var tdX=document.createElement('td');var ai=document.createElement('input');
+            ai.className=attClasses[af];ai.type='number';ai.min=0;ai.max=99;ai.step=1;
+            ai.value=s&&s[attFields[af]]!==''?s[attFields[af]]:'';(function(i2,f){ai.onchange=function(){students[i2][f]=this.value;recalc();};})(idx,attFields[af]);tdX.appendChild(ai);nr.appendChild(tdX);
+          }
+          // Add hw1-6 inputs
+          for(var hi=1;hi<=6;hi++){
+            var tdH=document.createElement('td');var hi2=document.createElement('input');
+            hi2.className='cnum';hi2.type='number';hi2.min=0;hi2.max=10;hi2.step=0.5;
+            hi2.value=s&&s['hw'+hi]!==''?s['hw'+hi]:'';(function(i2,h){hi2.onchange=function(){students[i2]['hw'+h]=this.value;recalc();};})(idx,hi);tdH.appendChild(hi2);nr.appendChild(tdH);
+          }
+          // Add qaY/qaL/qaZ/tbY/tbN only for 18次课
+          if(currentMode==='18'){
+            var qaFields=['qaY','qaL','qaZ','tbY','tbN'];
+            var qaMax=[99,99,99,99,99];var qaPlaces=['优','良','中','带','未'];
+            for(var qf=0;qf<5;qf++){
+              var tdQ=document.createElement('td');var qi=document.createElement('input');
+              qi.className='cnum';qi.type='number';qi.min=0;qi.max=99;qi.step=1;
+              qi.value=s&&s[qaFields[qf]]!==''?s[qaFields[qf]]:'';qi.placeholder=qaPlaces[qf];
+              (function(i2,f){qi.onchange=function(){students[i2][f]=this.value;recalc();};})(idx,qaFields[qf]);tdQ.appendChild(qi);nr.appendChild(tdQ);
+            }
+            // Experiment for 18次课
+            var expFields=['e1p','e1a','e1perf','e1r','e2p','e2a','e2perf','e2r'];
+            for(var ef=0;ef<8;ef++){
+              var tdE=document.createElement('td');var ei=document.createElement('input');
+              var mx=expFields[ef].indexOf('r')>=0?4:1;var sp=expFields[ef].indexOf('r')>=0?0.5:0.1;
+              ei.className='cnum';ei.type='number';ei.min=0;ei.max=mx;ei.step=sp;
+              ei.value=s&&s[expFields[ef]]!==''?s[expFields[ef]]:'';
+              (function(i2,f){ei.onchange=function(){students[i2][f]=this.value;recalc();};})(idx,expFields[ef]);tdE.appendChild(ei);nr.appendChild(tdE);
+            }
+          }else{
+            // Experiment for 16次课
+            var expFields2=['e1p','e1a','e1perf','e1r','e2p','e2a','e2perf','e2r'];
+            for(var ef2=0;ef2<8;ef2++){
+              var tdE2=document.createElement('td');var ei2=document.createElement('input');
+              var mx2=expFields2[ef2].indexOf('r')>=0?4:1;var sp2=expFields2[ef2].indexOf('r')>=0?0.5:0.1;
+              ei2.className='cnum';ei2.type='number';ei2.min=0;ei2.max=mx2;ei2.step=sp2;
+              var isAuto=(expFields2[ef2].indexOf('p')>=0||expFields2[ef2].indexOf('perf')>=0);
+              ei2.value=s&&s[expFields2[ef2]]!==''?s[expFields2[ef2]]:'';if(isAuto)ei2.setAttribute('readonly','');if(isAuto)ei2.style.background='#eee';
+              (function(i2,f){ei2.onchange=function(){students[i2][f]=this.value;recalc();};})(idx,expFields2[ef2]);tdE2.appendChild(ei2);nr.appendChild(tdE2);
+            }
+          }
+          // Add exam input
+          var examVal=s&&s.exam!==''?s.exam:'';
+          var tdEx=document.createElement('td');var exi=document.createElement('input');
+          exi.className='cscore';exi.type='number';exi.min=0;exi.max=100;exi.step=1;
+          exi.value=examVal;(function(i2){exi.onchange=function(){students[i2].exam=this.value;recalc();};})(idx);
+          tdEx.appendChild(exi);nr.appendChild(tdEx);
+          tb.appendChild(nr);
+        }
+        // Add cells to all rows
+        for(var ri=0;ri<res.length;ri++){
+          var rr=res[ri];var row=tb.children[ri];
+          if(!row)continue;
+          // Add result cells (skip if already have them)
+          var resultCount=10;
+          var inputCount=currentMode==='18'?25:20;
+          var neededCells=inputCount+resultCount;
+          if(row.children.length>=neededCells)continue;
+          // Add exam input if missing
+          var examIdx=currentMode==='18'?24:19;
+          if(row.children.length<examIdx+1){
+            var examVal2=students[ri]?students[ri].exam||'':'';
+            var etd2=document.createElement('td');
+            var ein2=document.createElement('input');
+            ein2.className='cscore';ein2.type='number';ein2.min=0;ein2.max=100;ein2.step=1;
+            ein2.value=examVal2;
+            (function(idx){ein2.onchange=function(){students[idx].exam=this.value;recalc();};})(ri);
+            etd2.appendChild(ein2);row.appendChild(etd2);
+          }
+          // Add result cells
+          var vals=[rr.att.toFixed(1),rr.hwScore.toFixed(1),rr.caScore.toFixed(1),rr.rawDaily.toFixed(1),rr.finalDaily.toFixed(1),rr.expPct.toFixed(1),rr.course.toFixed(1)];
+          var labels=[rr.passed?'及格':'不及格',rr.constraintOK?'约束通过':'违反规则','X'];
+          var clsLabels=[rr.passed?'pass':'fail',rr.constraintOK?'pass':'fail',''];
+          for(var j=0;j<vals.length;j++){
+            var tdR=document.createElement('td');var dv=document.createElement('div');dv.className='rc '+(j===6?rr.passed?'pass':'fail':'');dv.textContent=vals[j];tdR.appendChild(dv);row.appendChild(tdR);}
+          for(var j2=0;j2<2;j2++){
+            var tdL=document.createElement('td');var dv2=document.createElement('div');dv2.className='rc '+clsLabels[j2];dv2.textContent=labels[j2];tdL.appendChild(dv2);row.appendChild(tdL);}
+          // Delete button
+          var tdD=document.createElement('td');var btnD=document.createElement('button');btnD.className='del-btn';btnD.setAttribute('data-idx',ri);btnD.textContent='X';tdD.appendChild(btnD);row.appendChild(tdD);
+        }
+      }
+    }catch(e){}
+    setTimeout(function(){
+      var sw=document.querySelector('.scroll-wrap');
+      if(sw)sw.scrollLeft=sw.scrollWidth;
+    },50);
+    return r;
+  };
+})();</script>
+
+</body>
+</html>
